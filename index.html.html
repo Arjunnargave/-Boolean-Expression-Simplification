@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Boolean Expression Simplifier</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;800&display=swap">
+<style>
+:root{--bg:#eaf0ec;--panel:#fbfdfb;--ink:#132238;--mute:#58677a;--line:#c5d1c8;--acc:#0e7468;--accink:#fff;--hot:#f2b01e;--bad:#b3261e;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1a17;--panel:#16251f;--ink:#e4efe9;--mute:#93a8a0;--line:#2b4039;--acc:#3cc4b0;--accink:#08201b;--hot:#f2b01e;--bad:#ff8a80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1a17;--panel:#16251f;--ink:#e4efe9;--mute:#93a8a0;--line:#2b4039;--acc:#3cc4b0;--accink:#08201b;--bad:#ff8a80;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 Figtree,system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:clamp(26px,5vw,40px);font-weight:800;letter-spacing:-.02em;margin:8px 0 2px}
+h2{font-size:17px;margin:0 0 10px}
+.sub{color:var(--mute);margin:0 0 20px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+label{display:block;font-size:13px;color:var(--mute);margin-bottom:4px}
+input{font:inherit;font-family:ui-monospace,Menlo,Consolas,monospace;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+input:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--hot);outline-offset:2px}
+.f1{flex:3 1 280px}.f2{flex:1 1 160px}
+button{font:600 15px Figtree,system-ui,sans-serif;border:0;border-radius:8px;padding:10px 20px;background:var(--acc);color:var(--accink);cursor:pointer;align-self:flex-end}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chips button{background:transparent;color:var(--ink);border:1px solid var(--line);padding:5px 12px;font-weight:400;font-size:14px;font-family:ui-monospace,Menlo,monospace}
+.chips button:hover{border-color:var(--acc)}
+#err{color:var(--bad);min-height:1.4em;margin:8px 0 0;font-size:14px}
+.result{border-left:6px solid var(--hot)}
+.big{font:600 clamp(22px,4.5vw,36px)/1.3 ui-monospace,Menlo,Consolas,monospace;word-break:break-word;margin:4px 0 12px}
+.stats{display:flex;gap:24px;flex-wrap:wrap;margin:0}
+.stats div{min-width:90px}.stats dt{font-size:13px;color:var(--mute)}.stats dd{margin:0;font-size:22px;font-weight:800}
+.ok{color:var(--acc);font-weight:600;margin-top:10px;font-size:14px}.ok.no{color:var(--bad)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.grid .panel{margin:0}
+.scroll{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px}
+th,td{border:1px solid var(--line);padding:4px 10px;text-align:center}
+th{background:var(--bg);font-weight:600}
+tr.on td{background:color-mix(in srgb,var(--hot) 25%,transparent)}
+.kmap td{width:58px;height:50px;font-size:18px;font-weight:600}
+.kmap th{font-size:12px}
+.leg{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font:14px ui-monospace,Menlo,monospace}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:6px;vertical-align:-2px}
+details{margin-top:16px}summary{cursor:pointer;font-weight:600;padding:4px 0}
+.tag{font:12px Figtree,sans-serif;background:var(--acc);color:var(--accink);border-radius:4px;padding:1px 6px;margin-left:6px}
+.stage{margin:10px 0 18px}
+.help{color:var(--mute);font-size:14px}
+code{font-family:ui-monospace,Menlo,monospace;background:var(--bg);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<main>
+<h1>Boolean Expression Simplifier</h1>
+<p class="sub">Type an expression or a list of minterms. You get the minimal sum-of-products, with every step of the Quine–McCluskey method shown.</p>
+
+<section class="panel">
+<div class="row">
+<div class="f1"><label for="expr">Expression or minterms</label><input id="expr" value="A'B'C + A'BC + AB'C + ABC' + ABC" autocomplete="off" spellcheck="false"></div>
+<div class="f2"><label for="dc">Don’t-care minterms (optional)</label><input id="dc" placeholder="e.g. 3,7" autocomplete="off"></div>
+<button id="go">Simplify</button>
+</div>
+<div class="chips" id="chips"></div>
+<p id="err" role="alert"></p>
+<p class="help">Use <code>'</code> or <code>!</code> for NOT, <code>+</code> for OR, <code>*</code> or side-by-side letters for AND, <code>^</code> for XOR, brackets as needed. Or write <code>m(0,1,2,5,7)</code>. Up to 6 variables.</p>
+</section>
+
+<section class="panel result" id="res" hidden>
+<h2>Simplified result</h2>
+<div class="big" id="out"></div>
+<dl class="stats" id="stats"></dl>
+<div class="ok" id="ver"></div>
+</section>
+
+<div class="grid" id="viz" hidden>
+<section class="panel"><h2>Karnaugh map</h2><div class="scroll" id="kmap"></div><div class="leg" id="leg"></div></section>
+<section class="panel"><h2>Truth table</h2><div class="scroll" style="max-height:380px;overflow-y:auto" id="tt"></div></section>
+</div>
+
+<section class="panel" id="steps" hidden style="margin-top:16px">
+<h2>How it was solved</h2>
+<details open><summary>Step 1 and 2: group and combine terms</summary><div id="stages"></div></details>
+<details><summary>Step 3: prime implicant chart</summary><div class="scroll" id="chart"></div></details>
+<details><summary>Step 4: pick the cover</summary><div id="cover"></div></details>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const COL=['#e8a317','#2f9e8f','#c2185b','#5c6bc0','#8d6e63','#43a047'];
+const EX=["A'B'C + A'BC + AB'C + ABC' + ABC","(A+B)(A+C)","A^B^C","m(0,1,2,5,6,7,8,9,10,14)","AB + A'C + BC","!(A*B) + C"];
+EX.forEach(e=>{const b=document.createElement('button');b.textContent=e;b.onclick=()=>{$('#expr').value=e;$('#dc').value='';run()};$('#chips').appendChild(b)});
+$('#go').onclick=run;
+['expr','dc'].forEach(i=>$('#'+i).addEventListener('keydown',e=>{if(e.key==='Enter')run()}));
+
+function parse(s){let p=0;const pk=()=>s[p];
+function or(){let v=xor();while(pk()=='+'||pk()=='|'){p++;const a=v,b=xor();v=e=>a(e)|b(e)}return v}
+function xor(){let v=and();while(pk()=='^'){p++;const a=v,b=and();v=e=>a(e)^b(e)}return v}
+function and(){let v=not();while(pk()&&(pk()=='*'||pk()=='&'||/[A-Z01(!~]/.test(pk()))){if(pk()=='*'||pk()=='&')p++;const a=v,b=not();v=e=>a(e)&b(e)}return v}
+function not(){if(pk()=='!'||pk()=='~'){p++;const a=not();return e=>a(e)^1}return post()}
+function post(){let v=atom();while(pk()=="'"){p++;const a=v;v=e=>a(e)^1}return v}
+function atom(){const c=pk();if(c=='('){p++;const v=or();if(pk()!=')')throw new Error('Missing closing bracket.');p++;return v}
+if(c&&/[A-Z]/.test(c)){p++;return e=>e[c]}
+if(c=='0'||c=='1'){p++;const k=+c;return()=>k}
+throw new Error(c?'Unexpected “'+c+'”.':'The expression ends too early.')}
+const f=or();if(p<s.length)throw new Error('Unexpected “'+s[p]+'”.');return f}
+
+const lit=(b,v)=>b.split('').map((c,i)=>c=='1'?v[i]:c=='0'?v[i]+"'":'').join('')||'1';
+const nl=b=>b.replace(/-/g,'').length;
+const match=(b,i,n)=>b.split('').every((c,k)=>c=='-'||+c==((i>>(n-1-k))&1));
+
+function qm(n,ones,dcs){
+if(!ones.length)return{stages:[],primes:[],chosen:[],ess:new Set()};
+let cur=new Map();[...ones,...dcs].forEach(m=>cur.set(m.toString(2).padStart(n,'0'),[m]));
+const stages=[],primes=[];
+while(cur.size){stages.push([...cur].map(([b,m])=>({b,m})));
+const used=new Set(),nx=new Map(),k=[...cur.keys()];
+for(let i=0;i<k.length;i++)for(let j=i+1;j<k.length;j++){let d=-1,c=0;
+for(let x=0;x<n;x++)if(k[i][x]!=k[j][x]){c++;d=x;if(c>1)break}
+if(c==1){const nb=k[i].slice(0,d)+'-'+k[i].slice(d+1);used.add(k[i]);used.add(k[j]);
+nx.set(nb,[...new Set([...cur.get(k[i]),...cur.get(k[j])])].sort((a,b)=>a-b))}}
+k.forEach(x=>{if(!used.has(x))primes.push({b:x,m:cur.get(x)})});cur=nx}
+const chosen=new Set(),ess=new Set();
+ones.forEach(m=>{const c=primes.filter(p=>p.m.includes(m));if(c.length==1){chosen.add(c[0]);ess.add(c[0])}});
+let rem=ones.filter(m=>![...chosen].some(p=>p.m.includes(m)));
+while(rem.length){const cnt=p=>p.m.filter(m=>rem.includes(m)).length;
+const best=primes.filter(p=>!chosen.has(p)).sort((a,b)=>(cnt(b)-cnt(a))||(nl(a.b)-nl(b.b)))[0];
+chosen.add(best);rem=rem.filter(m=>!best.m.includes(m))}
+return{stages,primes,chosen:[...chosen],ess}}
+
+function solve(src,dsrc){
+const s=src.toUpperCase().replace(/\s+/g,'');if(!s)throw new Error('Enter an expression first.');
+const dcs=(dsrc.match(/\d+/g)||[]).map(Number);let vars,ones=[],n,mm=s.match(/^Σ?M\(([\d,]*)\)$/);
+if(mm){ones=(mm[1].match(/\d+/g)||[]).map(Number);n=Math.max(2,...ones.concat(dcs).map(x=>x.toString(2).length));vars='ABCDEF'.split('').slice(0,n)}
+else{vars=[...new Set(s.match(/[A-Z]/g)||[])].sort();n=vars.length;const f=parse(s);if(!n)throw new Error('Use at least one variable (A to Z).');
+if(n>6)throw new Error('Use at most 6 variables.');
+for(let i=0;i<1<<n;i++){const e={};vars.forEach((v,j)=>e[v]=(i>>(n-1-j))&1);if(f(e))ones.push(i)}}
+if(n>6)throw new Error('Minterms need more than 6 variables.');
+const N=1<<n,dset=new Set(dcs.filter(x=>x<N));ones=[...new Set(ones)].filter(x=>x<N&&!dset.has(x)).sort((a,b)=>a-b);
+const dl=[...dset].sort((a,b)=>a-b);return{n,vars,ones,dcs:dl,dset,N,...qm(n,ones,dl)}}
+
+function run(){$('#err').textContent='';try{render(solve($('#expr').value,$('#dc').value))}catch(e){$('#err').textContent=e.message;
+['res','viz','steps'].forEach(i=>$('#'+i).hidden=true)}}
+
+function render(r){const{n,vars,ones,dset,N,stages,primes,chosen,ess}=r;
+['res','viz','steps'].forEach(i=>$('#'+i).hidden=false);
+const cs=[...chosen].sort((a,b)=>a.b<b.b?-1:1);
+const out=!ones.length?'0':cs.some(p=>p.b.split('').every(c=>c=='-'))?'1':cs.map(p=>lit(p.b,vars)).join(' + ');
+$('#out').textContent='F = '+out;
+const before=ones.length*n,after=cs.reduce((a,p)=>a+nl(p.b),0),pct=before?Math.round(100*(before-after)/before):0;
+$('#stats').innerHTML=`<div><dt>Variables</dt><dd>${n}</dd></div><div><dt>Minterms</dt><dd>${ones.length}</dd></div><div><dt>Prime implicants</dt><dd>${primes.length}</dd></div><div><dt>Essential</dt><dd>${ess.size}</dd></div><div><dt>Literals</dt><dd>${before} → ${after}</dd></div><div><dt>Saved</dt><dd>${pct}%</dd></div>`;
+let ok=true;const oset=new Set(ones);
+for(let i=0;i<N;i++){if(dset.has(i))continue;const v=cs.some(p=>match(p.b,i,n))?1:0;if(v!=(oset.has(i)?1:0))ok=false}
+$('#ver').textContent=ok?'Checked against all '+N+' input rows: the result matches your function.':'Mismatch found. Please report this input.';$('#ver').className='ok'+(ok?'':' no');
+// truth table
+let t='<table><tr>'+vars.map(v=>`<th>${v}</th>`).join('')+'<th>F</th></tr>';
+for(let i=0;i<N;i++){const o=oset.has(i),d=dset.has(i);t+=`<tr class="${o?'on':''}">`+vars.map((v,j)=>`<td>${(i>>(n-1-j))&1}</td>`).join('')+`<td><b>${d?'X':o?1:0}</b></td></tr>`}
+$('#tt').innerHTML=t+'</table>';
+// kmap
+const cl=(p)=>COL[cs.indexOf(p)%COL.length];
+if(n<2||n>4){$('#kmap').innerHTML='<p class="help">The K-map is drawn for 2 to 4 variables.</p>';$('#leg').innerHTML=''}
+else{const rb=Math.floor(n/2),cb=n-rb,g=k=>k==1?[0,1]:[0,1,3,2],R=g(rb),C=g(cb),bin=(x,w)=>x.toString(2).padStart(w,'0');
+let k=`<table class="kmap"><tr><th>${vars.slice(0,rb).join('')}\\${vars.slice(rb).join('')}</th>`+C.map(c=>`<th>${bin(c,cb)}</th>`).join('')+'</tr>';
+R.forEach(rw=>{k+=`<tr><th>${bin(rw,rb)}</th>`;C.forEach(c=>{const i=(rw<<cb)|c,p=cs.find(q=>q.m.includes(i)&&match(q.b,i,n));
+const bg=p&&(oset.has(i)||dset.has(i))?`style="background:color-mix(in srgb,${cl(p)} 40%,transparent)"`:'';
+k+=`<td ${bg}>${dset.has(i)?'X':oset.has(i)?1:0}</td>`});k+='</tr>'});
+$('#kmap').innerHTML=k+'</table>';
+$('#leg').innerHTML=cs.map(p=>`<span><i class="sw" style="background:${cl(p)}"></i>${lit(p.b,vars)}</span>`).join('')}
+// stages
+$('#stages').innerHTML=stages.length?stages.map((st,si)=>{const pset=new Set(primes.map(p=>p.b));
+const rows=[...st].sort((a,b)=>a.b.replace(/[^1]/g,'').length-b.b.replace(/[^1]/g,'').length);
+return`<div class="stage"><b>Pass ${si+1}</b> ${si?'(pairs that differ in one bit)':'(binary form, grouped by number of 1s)'}<div class="scroll"><table><tr><th>1s</th><th>Minterms</th><th>Pattern</th><th></th></tr>`+
+rows.map(x=>`<tr><td>${x.b.replace(/[^1]/g,'').length}</td><td>${x.m.join(', ')}</td><td>${x.b}</td><td>${pset.has(x.b)?'<span class="tag">prime</span>':''}</td></tr>`).join('')+'</table></div></div>'}).join('')
++'<p class="help">A dash means that variable dropped out. Rows tagged prime could not be combined further.</p>':'<p class="help">The function is always 0, so there is nothing to combine.</p>';
+// chart
+$('#chart').innerHTML=primes.length?'<table><tr><th>Implicant</th><th>Term</th>'+ones.map(m=>`<th>${m}</th>`).join('')+'</tr>'+
+primes.map(p=>`<tr><td>${p.b}</td><td>${lit(p.b,vars)}${ess.has(p)?'<span class="tag">essential</span>':''}</td>`+ones.map(m=>`<td>${p.m.includes(m)?'●':''}</td>`).join('')+'</tr>').join('')+'</table>':'';
+$('#cover').innerHTML=ones.length?`<p>Essential implicants cover a minterm that nothing else covers, so they are always kept: <b>${[...ess].map(p=>lit(p.b,vars)).join(', ')||'none'}</b>.</p><p>${cs.length>ess.size?'The remaining minterms were covered by adding the implicant that covers most of them, preferring fewer literals.':'They already cover every minterm.'}</p><p>Final cover: <b>${out}</b></p>`:'';
+}
+run();
+</script>
+</body>
+</html>
